@@ -1,7 +1,11 @@
-import { PublicKey } from "@solana/web3.js"
+import { Connection, PublicKey } from "@solana/web3.js"
+import { performReverseLookup } from "@bonfida/spl-name-service"
 
-const JUPITER_TOKEN_LIST_URL = "https://quote-api.jup.ag/v6/tokens"
-const SOLANA_MAINNET_RPC = "https://api.mainnet-beta.solana.com"
+const HELIUS_API_KEY = "" // ⛳️ Replace with your actual API key
+const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
+
+const connection = new Connection(HELIUS_RPC)
+
 const SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 
 export type TokenInfo = {
@@ -33,12 +37,10 @@ export interface PortfolioData {
   isLoading: boolean
 }
 
-// ✅ Unified strict validator
 function isValidSolanaAddress(address: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)
 }
 
-// ✅ Final version
 function getValidAddress(address: any): string | null {
   try {
     if (!address) return null
@@ -57,7 +59,7 @@ export async function fetchSolBalance(address: any): Promise<number> {
   }
 
   try {
-    const response = await fetch(SOLANA_MAINNET_RPC, {
+    const response = await fetch(HELIUS_RPC, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -84,7 +86,7 @@ export async function fetchTokenBalances(address: any): Promise<TokenBalance[]> 
   }
 
   try {
-    const response = await fetch(SOLANA_MAINNET_RPC, {
+    const response = await fetch(HELIUS_RPC, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -132,28 +134,20 @@ export async function fetchJupiterTokenMap(): Promise<Record<string, TokenInfo>>
   return tokenMap
 }
 
+// ✅ SNS-based reverse lookup (handles "no domain" cleanly)
 export async function fetchSolDomain(walletAddress: string): Promise<string | null> {
   const addressString = getValidAddress(walletAddress)
   if (!addressString) return null
 
   try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
-
-    const response = await fetch(`/api/domain?address=${addressString}`, {
-      signal: controller.signal,
-    })
-
-    clearTimeout(timeout)
-
-    if (!response.ok) return null
-
-    const data = await response.json()
-    return data.success && data.data?.length > 0 ? data.data[0].name : null
+    const publicKey = new PublicKey(addressString)
+    const domain = await performReverseLookup(connection, publicKey)
+    return domain || null
   } catch (error: any) {
-    if (error?.name !== "AbortError") {
-      console.warn("Domain fetch warning:", error?.message || error)
+    if (error?.name === "SNSError") {
+      return null // no domain linked
     }
+    console.warn("SNS domain fetch failed:", error?.message || error)
     return null
   }
 }
