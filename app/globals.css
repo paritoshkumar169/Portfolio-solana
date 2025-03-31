@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 32% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 32% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 32% 17%;
+  --input: 217 32% 17%;
+  --ring: 212 26% 83%;
+  --radius: 0.5rem;
+}
+
+body {
+  @apply bg-[#111827] text-white;
+}
+
+/* Custom classes for the portfolio tracker */
+.portfolio-card {
+  @apply bg-[#1a2234] rounded-xl border border-[#2a3349];
+}
+
+.portfolio-button {
+  @apply bg-[#d0f861] hover:bg-[#c5ee56] text-black font-semibold transition-colors;
+}
+
+.portfolio-button-secondary {
+  @apply bg-[#1f2937] hover:bg-[#2d3748] text-white transition-colors;
+}
+
+.portfolio-input {
+  @apply bg-[#1f2937] border-[#2a3349] text-white placeholder:text-gray-500 focus:border-[#3b4659] focus:ring-[#3b4659];
+}
+
+/* Wallet adapter button customization */
+.wallet-adapter-button {
+  @apply rounded-md font-medium !important;
+}
+
+.wallet-adapter-button-trigger {
+  @apply bg-[#1f2937] hover:bg-[#2d3748] !important;
+}
+
+.wallet-adapter-dropdown-list {
+  @apply bg-[#1f2937] border border-[#2a3349] !important;
+}
+
+.wallet-adapter-dropdown-list-item {
+  @apply text-white hover:bg-[#2d3748] !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  @apply bg-[#111827] !important;
+}
+
+.wallet-adapter-modal-button-close {
+  @apply bg-[#1f2937] !important;
+}
+
+.wallet-adapter-modal-title {
+  @apply text-white !important;
+}
+
+.wallet-adapter-modal-content {
+  @apply text-gray-300 !important;
+}
+
+.wallet-adapter-modal-list {
+  @apply border-[#2a3349] !important;
+}
+
+.wallet-adapter-modal-list-more {
+  @apply text-gray-400 !important;
+}
+
+/* Custom wallet button for landing page */
+.landing-wallet-button .wallet-adapter-button {
+  @apply bg-[#d0f861] hover:bg-[#c5ee56] text-black font-semibold w-full py-4 text-lg !important;
+}
+
