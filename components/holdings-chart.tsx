@@ -8,6 +8,8 @@ interface HoldingsChartProps {
   totalValue: number
   currency: string
   convertValue: (value: number) => number
+  selectedToken?: string
+  onSelectToken?: (mint: string) => void
 }
 
 const currencySymbols: Record<string, string> = {
@@ -38,7 +40,14 @@ function generateColors(count: number): string[] {
   return colors
 }
 
-export function HoldingsChart({ tokens, totalValue, currency, convertValue }: HoldingsChartProps) {
+export function HoldingsChart({ 
+  tokens, 
+  totalValue, 
+  currency, 
+  convertValue,
+  selectedToken,
+  onSelectToken
+}: HoldingsChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const symbol = currencySymbols[currency] || "$"
 
@@ -77,19 +86,45 @@ export function HoldingsChart({ tokens, totalValue, currency, convertValue }: Ho
 
     // Draw segments
     let startAngle = 0
+    const segments: { token: TokenWithPrice; startAngle: number; endAngle: number; color: string }[] = []
+    
     sortedTokens.forEach((token, index) => {
       const value = token.value || 0
       const sliceAngle = (value / total) * (2 * Math.PI)
+      const endAngle = startAngle + sliceAngle
 
       ctx.beginPath()
       ctx.moveTo(centerX, centerY)
-      ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle)
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle)
       ctx.closePath()
 
-      ctx.fillStyle = colors[index]
-      ctx.fill()
+      const color = colors[index]
+      ctx.fillStyle = color
+      
+      // Highlight selected token
+      if (selectedToken === token.mint) {
+        ctx.shadowColor = 'white'
+        ctx.shadowBlur = 10
+        // Push segment slightly out
+        const midAngle = startAngle + sliceAngle / 2
+        const offsetX = Math.cos(midAngle) * 10
+        const offsetY = Math.sin(midAngle) * 10
+        ctx.translate(offsetX, offsetY)
+        ctx.fill()
+        ctx.translate(-offsetX, -offsetY)
+        ctx.shadowBlur = 0
+      } else {
+        ctx.fill()
+      }
 
-      startAngle += sliceAngle
+      segments.push({
+        token,
+        startAngle,
+        endAngle,
+        color
+      })
+
+      startAngle = endAngle
     })
 
     // Draw inner circle (hole)
@@ -97,7 +132,44 @@ export function HoldingsChart({ tokens, totalValue, currency, convertValue }: Ho
     ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI)
     ctx.fillStyle = "#111827"
     ctx.fill()
-  }, [tokens, totalValue, currency])
+
+    // Add click handler to canvas
+    const handleClick = (event: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      const x = event.clientX - rect.left
+      const y = event.clientY - rect.top
+      
+      // Convert to canvas coordinates
+      const canvasX = x * dpr
+      const canvasY = y * dpr
+      
+      // Calculate distance from center
+      const dx = canvasX - centerX * dpr
+      const dy = canvasY - centerY * dpr
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      // Check if click is within donut
+      if (distance >= innerRadius * dpr && distance <= radius * dpr) {
+        // Calculate angle
+        const angle = Math.atan2(dy, dx)
+        const normalizedAngle = angle < 0 ? angle + 2 * Math.PI : angle
+        
+        // Find which segment was clicked
+        for (const segment of segments) {
+          if (normalizedAngle >= segment.startAngle && normalizedAngle <= segment.endAngle) {
+            onSelectToken?.(segment.token.mint)
+            break
+          }
+        }
+      }
+    }
+
+    canvas.addEventListener('click', handleClick)
+    
+    return () => {
+      canvas.removeEventListener('click', handleClick)
+    }
+  }, [tokens, totalValue, currency, selectedToken, onSelectToken])
 
   // If no tokens with value, show empty chart
   if (!tokens.some((token) => token.value && token.value > 0)) {
@@ -108,17 +180,33 @@ export function HoldingsChart({ tokens, totalValue, currency, convertValue }: Ho
     )
   }
 
+  // Find selected token data
+  const selectedTokenData = selectedToken 
+    ? tokens.find(t => t.mint === selectedToken) 
+    : null
+
   return (
     <div className="relative h-48">
-      <canvas ref={canvasRef} className="w-full h-full" />
+      <canvas ref={canvasRef} className="w-full h-full cursor-pointer" />
       <div className="absolute top-1/2 right-4 transform -translate-y-1/2 flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full bg-[#d0f861]"></div>
-        <div className="text-sm">
-          Holdings ({symbol}
-          {convertValue(totalValue).toFixed(2)}) 100.00%
-        </div>
+        {selectedTokenData ? (
+          <>
+            <div className="w-3 h-3 rounded-full bg-[#d0f861]"></div>
+            <div className="text-sm">
+              {selectedTokenData.symbol} ({symbol}
+              {convertValue(selectedTokenData.value).toFixed(2)}) {((selectedTokenData.value / totalValue) * 100).toFixed(2)}%
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="w-3 h-3 rounded-full bg-[#d0f861]"></div>
+            <div className="text-sm">
+              Holdings ({symbol}
+              {convertValue(totalValue).toFixed(2)}) 100.00%
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
-

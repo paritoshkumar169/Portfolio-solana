@@ -1,78 +1,113 @@
-"use client"
-
+import Image from "next/image"
+import { useState } from "react"
+import { cn } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import type { TokenWithPrice } from "@/lib/api"
 
-interface HoldingsTableProps {
+interface Props {
   tokens: TokenWithPrice[]
   isBalanceHidden: boolean
   currency: string
-  convertValue: (value: number) => number
+  convertValue: (value: number) => string
+  selectedToken?: string
+  onSelectToken?: (mint: string) => void
 }
 
-const currencySymbols: Record<string, string> = {
-  USD: "$",
-  EUR: "€",
-  JPY: "¥",
-  INR: "₹",
-  ZAR: "R",
-}
+export default function HoldingsTable({
+  tokens,
+  isBalanceHidden,
+  currency,
+  convertValue,
+  selectedToken,
+  onSelectToken,
+}: Props) {
+  const [hideZeroBalances, setHideZeroBalances] = useState(false)
+  
+  const filteredTokens = hideZeroBalances 
+    ? tokens.filter(token => token.value > 0)
+    : tokens
 
-export function HoldingsTable({ tokens, isBalanceHidden, currency, convertValue }: HoldingsTableProps) {
-  const symbol = currencySymbols[currency] || "$"
-
-  // Sort tokens by value
-  const sortedTokens = [...tokens]
-    .filter((token) => token.value !== undefined)
-    .sort((a, b) => (b.value || 0) - (a.value || 0))
-
-  if (sortedTokens.length === 0) {
-    return <div className="text-center py-8 text-gray-400">No tokens found for this wallet</div>
+  if (!filteredTokens || filteredTokens.length === 0) {
+    return (
+      <div className="text-center text-sm text-muted-foreground py-4">
+        No tokens found
+      </div>
+    )
   }
 
   return (
-    <div className="overflow-x-auto -mx-6">
-      <div className="inline-block min-w-full align-middle">
-        <div className="overflow-hidden">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-[#2a3349]">
-                <th scope="col" className="px-6 py-3 text-left text-sm font-medium text-gray-400">
-                  Asset
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-sm font-medium text-gray-400">
-                  Balance
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-sm font-medium text-gray-400">
-                  Price
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-sm font-medium text-gray-400">
-                  Value
-                </th>
+    <div className="space-y-4">
+      <div className="flex items-center justify-end space-x-2">
+        <Switch 
+          id="hide-zero-balances" 
+          checked={hideZeroBalances}
+          onCheckedChange={setHideZeroBalances}
+        />
+        <Label htmlFor="hide-zero-balances">Hide zero balances</Label>
+      </div>
+      
+      <div className="rounded-xl border bg-background text-sm shadow-sm">
+        <div className="max-h-[400px] overflow-y-auto">
+          <table className="w-full min-w-[600px]">
+            <thead className="border-b text-muted-foreground sticky top-0 bg-background z-10">
+              <tr className="text-left">
+                <th className="px-4 py-2 font-normal">Token</th>
+                <th className="px-4 py-2 font-normal">Amount</th>
+                <th className="px-4 py-2 font-normal">Value</th>
+                <th className="px-4 py-2 font-normal hidden md:table-cell">Mint</th>
               </tr>
             </thead>
             <tbody>
-              {sortedTokens.map((token) => (
-                <tr key={token.mint} className="border-b border-[#2a3349] hover:bg-[#1f2937]/50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#2d3748] flex items-center justify-center text-xs">
-                        {token.metadata?.symbol || token.mint.substring(0, 4)}
-                      </div>
-                      <span className="font-medium">{token.metadata?.name || token.mint.substring(0, 8)}</span>
+              {filteredTokens.map((token) => (
+                <tr 
+                  key={token.mint} 
+                  className={cn(
+                    "border-b hover:bg-accent/30 cursor-pointer",
+                    selectedToken === token.mint && "bg-accent/50"
+                  )}
+                  onClick={() => onSelectToken?.(token.mint)}
+                >
+                  <td className="flex items-center gap-2 px-4 py-3">
+                    {token.logoURI ? (
+                      <Image
+                        src={token.logoURI || "/placeholder.svg"}
+                        alt={token.symbol}
+                        width={20}
+                        height={20}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="w-[20px] h-[20px] rounded-full bg-muted" />
+                    )}
+                    <div className="flex flex-col">
+                      {token.symbol || token.mint.substring(0, 4)}
+                      <span className="font-medium text-muted-foreground">
+                        {token.symbol || token.mint.substring(0, 8)}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    {isBalanceHidden
-                      ? "****"
-                      : token.uiAmount.toLocaleString(undefined, {
-                          maximumFractionDigits: token.uiAmount < 0.01 ? 8 : 2,
-                        })}
+
+                  <td className="px-4 py-3">
+                    {isBalanceHidden ? (
+                      <span className="blur-sm select-none">•••</span>
+                    ) : (
+                      token.uiAmount.toLocaleString(undefined, {
+                        maximumFractionDigits: 4,
+                      })
+                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    {token.price ? `${symbol}${convertValue(token.price).toFixed(token.price < 0.01 ? 6 : 2)}` : "-"}
+
+                  <td className="px-4 py-3">
+                    {isBalanceHidden ? (
+                      <span className="blur-sm select-none">•••</span>
+                    ) : (
+                      convertValue(token.value)
+                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right font-medium">
-                    {isBalanceHidden ? "****.**" : `${symbol}${convertValue(token.value || 0).toFixed(2)}`}
+
+                  <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                    <span className="text-xs">{token.mint.slice(0, 8)}...</span>
                   </td>
                 </tr>
               ))}

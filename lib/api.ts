@@ -1,9 +1,8 @@
 import { Connection, PublicKey } from "@solana/web3.js"
 import { performReverseLookup } from "@bonfida/spl-name-service"
 
-const HELIUS_API_KEY = "" // ⛳️ Replace with your actual API key
+const HELIUS_API_KEY = "" //add your api from helius
 const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
-
 const connection = new Connection(HELIUS_RPC)
 
 const SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -27,32 +26,44 @@ export interface TokenBalance {
   logoURI?: string
   price?: number
 }
-
 export interface PortfolioData {
   address: string
   solBalance: number
   totalValue: number
-  tokens: TokenBalance[]
+  tokens: TokenWithPrice[]  // ✅ updated
   domain?: string
   isLoading: boolean
+}
+
+export interface TokenWithPrice extends TokenBalance {
+  uiAmount: number
+  symbol: string
+  logoURI?: string
+  price: number
+  value: number
 }
 
 function isValidSolanaAddress(address: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)
 }
 
-function getValidAddress(address: any): string | null {
+export async function getValidAddress(address: any): Promise<string | null> {
   try {
     if (!address) return null
-    const addr = typeof address === "string" ? address.trim() : address?.toBase58?.()
-    return addr && isValidSolanaAddress(addr) ? addr : null
+    const raw = typeof address === "string" ? address.trim() : address?.toBase58?.()
+    if (!raw) return null
+    if (raw.endsWith(".sol")) {
+      const resolved = await resolveSolDomain(raw)
+      return resolved && isValidSolanaAddress(resolved) ? resolved : null
+    }
+    return isValidSolanaAddress(raw) ? raw : null
   } catch {
     return null
   }
 }
 
 export async function fetchSolBalance(address: any): Promise<number> {
-  const addressString = getValidAddress(address)
+  const addressString = await getValidAddress(address)
   if (!addressString) {
     console.error("Invalid SOL balance address:", address)
     return 0
@@ -79,7 +90,7 @@ export async function fetchSolBalance(address: any): Promise<number> {
 }
 
 export async function fetchTokenBalances(address: any): Promise<TokenBalance[]> {
-  const addressString = getValidAddress(address)
+  const addressString = await getValidAddress(address)
   if (!addressString) {
     console.error("Invalid token balance address:", address)
     return []
@@ -134,9 +145,59 @@ export async function fetchJupiterTokenMap(): Promise<Record<string, TokenInfo>>
   return tokenMap
 }
 
-// ✅ SNS-based reverse lookup (handles "no domain" cleanly)
+
+export async function fetchLiveSolPrice(): Promise<number> {
+  try {
+    //trying jup
+    const res = await fetch("https://price.jup.ag/v4/price?ids=SOL")
+    const data = await res.json()
+    const price = data?.data?.SOL?.price
+
+    if (price) {
+      console.log("🔥 Fetched SOL price from Jupiter:", price)
+      return price
+    }
+
+    throw new Error("Jupiter price missing")
+  } catch (jupiterErr) {
+    console.warn("Jupiter price fetch failed, trying CoinGecko...")
+
+    try {
+      const coingeckoRes = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+      )
+      const cgData = await coingeckoRes.json()
+      const fallbackPrice = cgData?.solana?.usd
+
+      if (fallbackPrice) {
+        console.log(" Fallback SOL price from CoinGecko:", fallbackPrice)
+        return fallbackPrice
+      }
+
+      throw new Error("CoinGecko price missing")
+    } catch (cgErr) {
+      console.error(" CoinGecko fallback also failed:", cgErr)
+      return 0
+    }
+  }
+}
+
+
+// .sol to walletaddress
+export async function resolveSolDomain(domain: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/domain?name=${domain}`)
+    const data = await res.json()
+    return data.address || null
+  } catch (error) {
+    console.error("Failed to resolve domain:", error)
+    return null
+  }
+}
+
+// SNS-based reverse resolution (wallet → .sol)
 export async function fetchSolDomain(walletAddress: string): Promise<string | null> {
-  const addressString = getValidAddress(walletAddress)
+  const addressString = await getValidAddress(walletAddress)
   if (!addressString) return null
 
   try {
@@ -144,16 +205,15 @@ export async function fetchSolDomain(walletAddress: string): Promise<string | nu
     const domain = await performReverseLookup(connection, publicKey)
     return domain || null
   } catch (error: any) {
-    if (error?.name === "SNSError") {
-      return null // no domain linked
-    }
+    if (error?.name === "SNSError") return null
     console.warn("SNS domain fetch failed:", error?.message || error)
     return null
   }
 }
 
+// 🎯 Main portfolio fetcher
 export async function fetchPortfolio(address: any): Promise<PortfolioData> {
-  const addressString = getValidAddress(address)
+  const addressString = await getValidAddress(address)
   if (!addressString) {
     console.error("Invalid portfolio address:", address)
     return {
@@ -166,33 +226,37 @@ export async function fetchPortfolio(address: any): Promise<PortfolioData> {
   }
 
   try {
-    const [solBalance, tokenBalances, tokenMap, domain] = await Promise.all([
+    const [solBalance, tokenBalances, tokenMap, domain, solPrice] = await Promise.all([
       fetchSolBalance(addressString),
       fetchTokenBalances(addressString),
       fetchJupiterTokenMap(),
       fetchSolDomain(addressString).catch(() => null),
+      fetchLiveSolPrice(),
     ])
 
-    const solMint = "So11111111111111111111111111111111111111112"
-    const solPrice = tokenMap[solMint]?.price || 0
+    const enrichedTokens: TokenWithPrice[] = tokenBalances.map((token) => {
+      const uiAmount = token.amount / 10 ** token.decimals
+      const price = tokenMap[token.mint]?.price || 0
 
-    const enrichedTokens = tokenBalances.map((token) => ({
-      ...token,
-      symbol: tokenMap[token.mint]?.symbol || token.mint.slice(0, 4),
-      logoURI: tokenMap[token.mint]?.logoURI || "",
-      price: tokenMap[token.mint]?.price || 0,
-    }))
+      return {
+        ...token,
+        uiAmount,
+        symbol: tokenMap[token.mint]?.symbol || token.mint.slice(0, 4),
+        logoURI: tokenMap[token.mint]?.logoURI || "",
+        price,
+        value: uiAmount * price,
+      }
+    })
 
-    const tokenValues = enrichedTokens.reduce(
-      (acc, t) => acc + (t.amount / 10 ** t.decimals) * t.price,
-      0
-    )
+    const sortedTokens = enrichedTokens.sort((a, b) => b.value - a.value)
+
+    const tokenValues = sortedTokens.reduce((acc, t) => acc + t.value, 0)
 
     return {
       address: addressString,
       solBalance,
       totalValue: solBalance * solPrice + tokenValues,
-      tokens: enrichedTokens,
+      tokens: sortedTokens,
       domain: domain || undefined,
       isLoading: false,
     }

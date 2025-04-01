@@ -2,22 +2,31 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
-import { useEffect } from "react"
+import { resolveSolDomain } from "@/lib/api" // ✅ Add this import
 
 export function LandingPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
   const { connected } = useWallet()
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (searchQuery.trim()) {
+    if (!searchQuery.trim()) return
+
+    if (searchQuery.endsWith(".sol")) {
+      const resolved = await resolveSolDomain(searchQuery)
+      if (resolved) {
+        router.push(`/dashboard?address=${resolved}`)
+      } else {
+        alert("Invalid .sol domain")
+      }
+    } else {
       router.push(`/dashboard?address=${searchQuery}`)
     }
   }
@@ -68,4 +77,3 @@ export function LandingPage() {
     </div>
   )
 }
-

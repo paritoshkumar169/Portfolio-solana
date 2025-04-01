@@ -1,26 +1,31 @@
 import { NextResponse } from "next/server"
+import { Connection } from "@solana/web3.js"
+import { getDomainKey, NameRegistryState } from "@bonfida/spl-name-service"
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const address = searchParams.get("address")
+const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
+const connection = new Connection(HELIUS_RPC)
 
-  if (!address) {
-    return NextResponse.json({ error: "Missing address" }, { status: 400 })
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const domain = searchParams.get("name")
+
+  if (!domain || !domain.endsWith(".sol")) {
+    return NextResponse.json({ error: "Invalid .sol domain" }, { status: 400 })
   }
 
   try {
-    const res = await fetch(`https://api.solscan.io/account/domain?address=${address}`)
+    const { pubkey } = await getDomainKey(domain.replace(".sol", ""))
+    const { registry } = await NameRegistryState.retrieve(connection, pubkey)
 
-    const contentType = res.headers.get("content-type")
-    if (!contentType?.includes("application/json")) {
-      console.error("Solscan returned non-JSON:", await res.text())
-      return NextResponse.json({ success: false, data: [] }, { status: 502 })
+    const owner = registry.owner.toBase58()
+    return NextResponse.json({ address: owner })
+  } catch (error) {
+    let errorMessage = "Unknown error"
+    if (error instanceof Error) {
+      errorMessage = error.message
     }
 
-    const domainData = await res.json()
-    return NextResponse.json(domainData)
-  } catch (err: any) {
-    console.error("❌ Solscan API failed:", err.message || err)
-    return NextResponse.json({ success: false, data: [] }, { status: 500 })
+    console.error("SNS resolution failed:", error)
+    return NextResponse.json({ error: "Failed to resolve domain", details: errorMessage }, { status: 500 })
   }
 }

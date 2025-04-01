@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Search, Settings, RefreshCw } from "lucide-react"
+import { Search, Settings, RefreshCw } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useWallet } from "@solana/wallet-adapter-react"
@@ -12,13 +12,15 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
 import { CurrencySelector } from "@/components/currency-selector"
 import { NetWorth } from "@/components/net-worth"
 import { HoldingsChart } from "@/components/holdings-chart"
-import { HoldingsTable } from "@/components/holdings-table"
+import HoldingsTable from "@/components/holdings-table"
+
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePortfolio, type Currency } from "@/hooks/use-portfolio"
 
 export function Dashboard() {
   const [isCurrencySelectorOpen, setIsCurrencySelectorOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedToken, setSelectedToken] = useState<string | undefined>(undefined)
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -116,8 +118,8 @@ export function Dashboard() {
           <div className="text-xs text-gray-500 ml-2">Last refresh a few seconds ago</div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="portfolio-card p-6">
+        <div className="grid md:grid-cols-12 gap-6">
+          <div className="portfolio-card p-6 md:col-span-5">
             <NetWorth
               value={utils.convertValue(portfolio.totalValue)}
               solValue={portfolio.solBalance}
@@ -127,12 +129,14 @@ export function Dashboard() {
             />
           </div>
 
-          <div className="portfolio-card p-6">
+          <div className="portfolio-card p-6 md:col-span-7">
             <HoldingsChart
               tokens={portfolio.tokens}
               totalValue={portfolio.totalValue}
               currency={currency}
               convertValue={utils.convertValue}
+              selectedToken={selectedToken}
+              onSelectToken={setSelectedToken}
             />
 
             <Tabs defaultValue="platforms" className="mt-6">
@@ -174,7 +178,9 @@ export function Dashboard() {
             tokens={portfolio.tokens}
             isBalanceHidden={isBalanceHidden}
             currency={currency}
-            convertValue={utils.convertValue}
+            convertValue={(value) => utils.convertValue(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            selectedToken={selectedToken}
+            onSelectToken={setSelectedToken}
           />
         </div>
       </main>
