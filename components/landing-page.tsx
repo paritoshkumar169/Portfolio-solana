@@ -47,8 +47,8 @@ export function LandingPage() {
 
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4">
         <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-5xl font-bold text-white mb-4">Crypto Portfolio Tracker</h1>
-          <p className="text-xl text-gray-300 mb-8">Track all your assets, in one place.</p>
+          <h1 className="text-5xl font-bold text-white mb-4">Solana Portfolio Tracker</h1>
+          <p className="text-xl text-gray-300 mb-8">Check How Much Money You and Your degen friends are losing on shitcoins</p>
 
           <form onSubmit={handleSearch} className="mb-6 w-full max-w-xl mx-auto">
             <div className="relative">
