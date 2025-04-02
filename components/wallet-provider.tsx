@@ -32,15 +32,14 @@ export const WalletContextProvider: FC<WalletContextProviderProps> = ({ children
 
     // Dynamically import wallet adapters to avoid SSR issues
     const loadWallets = async () => {
-      const { PhantomWalletAdapter, SolflareWalletAdapter, BackpackWalletAdapter, BraveWalletAdapter } = await import(
+      const { PhantomWalletAdapter, SolflareWalletAdapter} = await import(
         "@solana/wallet-adapter-wallets"
       )
 
       setWallets([
         new PhantomWalletAdapter(),
         new SolflareWalletAdapter(),
-        new BackpackWalletAdapter(),
-        new BraveWalletAdapter(),
+       
       ])
     }
 
