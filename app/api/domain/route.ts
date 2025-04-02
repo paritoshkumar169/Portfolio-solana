@@ -2,7 +2,12 @@ import { NextResponse } from "next/server"
 import { Connection } from "@solana/web3.js"
 import { getDomainKey, NameRegistryState } from "@bonfida/spl-name-service"
 
-const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY
+if (!HELIUS_API_KEY) {
+  throw new Error("API key is missing")
+}
+
+const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
 const connection = new Connection(HELIUS_RPC)
 
 export async function GET(request: Request) {

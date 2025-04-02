@@ -1,8 +1,12 @@
 import { Connection, PublicKey } from "@solana/web3.js"
 import { performReverseLookup } from "@bonfida/spl-name-service"
 
-const HELIUS_API_KEY = "" //add your api from helius
-const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`
+const NEXT_PUBLIC_HELIUS_API_KEY = process.env.NEXT_PUBLIC_HELIUS_API_KEY
+if (!NEXT_PUBLIC_HELIUS_API_KEY) {
+  throw new Error("Helius API Key is missing")
+}
+
+const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${NEXT_PUBLIC_HELIUS_API_KEY}`
 const connection = new Connection(HELIUS_RPC)
 
 const SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -211,7 +215,7 @@ export async function fetchSolDomain(walletAddress: string): Promise<string | nu
   }
 }
 
-// 🎯 Main portfolio fetcher
+// Main Portfolio
 export async function fetchPortfolio(address: any): Promise<PortfolioData> {
   const addressString = await getValidAddress(address)
   if (!addressString) {
@@ -249,7 +253,6 @@ export async function fetchPortfolio(address: any): Promise<PortfolioData> {
     })
 
     const sortedTokens = enrichedTokens.sort((a, b) => b.value - a.value)
-
     const tokenValues = sortedTokens.reduce((acc, t) => acc + t.value, 0)
 
     return {
@@ -270,4 +273,30 @@ export async function fetchPortfolio(address: any): Promise<PortfolioData> {
       isLoading: false,
     }
   }
+}
+export async function fetchRecentTransactions(address: string, limit: number = 10, beforeSignature?: string) {
+  const HELIUS_API_KEY = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
+  if (!HELIUS_API_KEY) throw new Error("Missing Helius API key");
+
+  const baseUrl = `https://api.helius.xyz/v0/addresses/${address}/transactions`;
+  const query = new URLSearchParams({
+    "api-key": HELIUS_API_KEY,
+    "limit": limit.toString(),
+  });
+
+  if (beforeSignature) {
+    query.append("before", beforeSignature);
+  }
+
+  const url = `${baseUrl}?${query.toString()}`;
+  console.log("👉 Fetching:", url);
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Helius API Error:", errorText);
+    throw new Error("Failed to fetch transactions");
+  }
+
+  return await res.json();
 }

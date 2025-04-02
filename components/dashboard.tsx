@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Search, Settings, RefreshCw } from 'lucide-react'
@@ -13,7 +12,6 @@ import { CurrencySelector } from "@/components/currency-selector"
 import { NetWorth } from "@/components/net-worth"
 import { HoldingsChart } from "@/components/holdings-chart"
 import HoldingsTable from "@/components/holdings-table"
-
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePortfolio, type Currency } from "@/hooks/use-portfolio"
 
@@ -21,14 +19,11 @@ export function Dashboard() {
   const [isCurrencySelectorOpen, setIsCurrencySelectorOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedToken, setSelectedToken] = useState<string | undefined>(undefined)
-
   const searchParams = useSearchParams()
   const router = useRouter()
   const { publicKey, connected } = useWallet()
-
   const addressParam = searchParams?.get("address")
   const address = addressParam || publicKey?.toBase58()
-
   const {
     portfolio,
     currency,
@@ -38,7 +33,7 @@ export function Dashboard() {
     utils
   } = usePortfolio(addressParam || undefined)
 
-  // Redirect to home if no wallet is connected and no address is provided
+  // Redirect to landing page
   useEffect(() => {
     if (!connected && !addressParam) {
       router.push("/")
@@ -64,7 +59,7 @@ export function Dashboard() {
       <div className="min-h-screen bg-[#111827] text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4">Loading portfolio data...</p>
+          <p className="mt-4">Loading portfolio data..</p>
         </div>
       </div>
     )
@@ -79,12 +74,12 @@ export function Dashboard() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search address, domain or bundle"
+                placeholder="Search address or .sol domain"
                 className="portfolio-input pl-10 pr-10 py-2 rounded-lg w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">⌘K</div>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">Press Enter</div>
             </div>
           </form>
 
@@ -151,6 +146,14 @@ export function Dashboard() {
             </Tabs>
           </div>
         </div>
+        <div className="mt-6 flex justify-end">
+  <Button
+    className="bg-blue-600 hover:bg-blue-700 transition-colors"
+    onClick={() => router.push(`/dashboard/transactions${address ? `?address=${address}` : ""}`)}
+  >
+    Recent Transactions
+  </Button>
+</div>
 
         <div className="mt-6 portfolio-card p-6">
           <div className="flex items-center justify-between mb-4">

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
@@ -31,7 +30,7 @@ export function LandingPage() {
     }
   }
 
-  // Redirect to dashboard if wallet is connected
+  // Redirect to dashboard
   useEffect(() => {
     if (connected) {
       router.push("/dashboard")
@@ -56,12 +55,12 @@ export function LandingPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search address, domain or bundle"
+                placeholder="Search a Solana address or enter a .sol Domain"
                 className="portfolio-input pl-10 pr-10 py-6 rounded-lg w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">⌘K</div>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">Press Enter</div>
             </div>
           </form>
 
@@ -70,7 +69,7 @@ export function LandingPage() {
           </div>
 
           <p className="mt-4 text-gray-400">
-            <button className="hover:text-white underline">Or try demo</button>
+         
           </p>
         </div>
       </main>

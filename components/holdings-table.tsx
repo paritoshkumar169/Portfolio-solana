@@ -25,8 +25,8 @@ export default function HoldingsTable({
   const [hideZeroBalances, setHideZeroBalances] = useState(false)
   
   const filteredTokens = hideZeroBalances 
-    ? tokens.filter(token => token.value > 0)
-    : tokens
+  ? tokens.filter(token => token.uiAmount > 0)
+  : tokens
 
   if (!filteredTokens || filteredTokens.length === 0) {
     return (
